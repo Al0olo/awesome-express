@@ -4,7 +4,7 @@
 
 import express from 'express';
 import dotenv from 'dotenv';
-import { createHttp2App, startHttp2Server } from '../../lib/index'; // In a real app, this would be 'awesome-express'
+import { createHttp2App, startHttp2Server } from 'awesome-express'; // In a real app, this would be 'awesome-express'
 import { createAuthRoutes } from '../auth/auth-routes';
 import { createJwtAuth } from '../auth';
 
@@ -74,7 +74,7 @@ async function bootstrap() {
     if (process.env.NODE_ENV !== 'production') {
       const http = require('http');
       const httpServer = http.createServer(app);
-      const HTTP_PORT = process.env.HTTP_PORT || 8080;
+      const HTTP_PORT = process.env.HTTP_PORT || 3001;
       
       httpServer.listen(HTTP_PORT, () => {
         console.log(`HTTP server running on http://localhost:${HTTP_PORT}`);
