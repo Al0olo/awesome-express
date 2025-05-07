@@ -1,6 +1,6 @@
 {
   "name": "awesome-express",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Enhanced Express framework with HTTP/2 support and CLI tools",
   "main": "lib/index.js",
   "author": "Abdullah Farag <abdallah.farag@lavaloon.com>",
@@ -55,5 +55,11 @@
   },
   "engines": {
     "node": ">=14.0.0"
+  },
+  "overrides": {
+    "glob": "^10.3.15"
+  },
+  "resolutions": {
+    "glob": "^10.3.15"
   }
 } 
