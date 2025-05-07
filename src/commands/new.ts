@@ -4,11 +4,13 @@ import chalk from 'chalk';
 import ora from 'ora';
 import execa from 'execa';
 import * as ejs from 'ejs';
+import inquirer from 'inquirer';
 
 interface NewProjectOptions {
   directory?: string;
   skipInstall?: boolean;
   skipGit?: boolean;
+  includeAuth?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ export async function createNewProject(name: string, options: NewProjectOptions)
   // Copy template files
   const spinner = ora('Creating project structure...').start();
   try {
-    await copyTemplateFiles(projectPath, name);
+    await copyTemplateFiles(projectPath, name, options.includeAuth);
     spinner.succeed('Project structure created');
   } catch (error) {
     spinner.fail('Failed to create project structure');
@@ -101,7 +103,7 @@ export async function createNewProject(name: string, options: NewProjectOptions)
 /**
  * Copy template files to the project directory
  */
-async function copyTemplateFiles(projectPath: string, projectName: string): Promise<void> {
+async function copyTemplateFiles(projectPath: string, projectName: string, includeAuth = false): Promise<void> {
   // In a real implementation, this would copy from actual template files
   // For now, we'll create the basic structure programmatically
   
@@ -138,14 +140,16 @@ async function copyTemplateFiles(projectPath: string, projectName: string): Prom
       express: '^4.18.2',
       'awesome-express': '^0.1.0',
       'express-validator': '^7.0.1',
-      dotenv: '^16.0.3'
+      dotenv: '^16.0.3',
+      jsonwebtoken: '^9.0.2'
     },
     devDependencies: {
       '@types/express': '^4.17.17',
       '@types/node': '^18.16.0',
       nodemon: '^2.0.22',
       'ts-node': '^10.9.1',
-      typescript: '^5.0.4'
+      typescript: '^5.0.4',
+      '@types/jsonwebtoken': '^9.0.2'
     }
   };
   
@@ -182,12 +186,12 @@ NODE_ENV=development
 # SSL Certificate paths (for production)
 SSL_CERT_PATH=./certs/fullchain.pem
 SSL_KEY_PATH=./certs/privkey.pem
-`;
+${includeAuth ? `\n# JWT Authentication\nJWT_SECRET=${require('crypto').randomBytes(32).toString('hex')}\n` : ''}`;
   
   await fs.writeFile(path.join(projectPath, '.env'), envContent);
   
   // Create app.ts
-  await fs.writeFile(path.join(projectPath, 'src', 'app.ts'), appTsContent(projectName));
+  await fs.writeFile(path.join(projectPath, 'src', 'app.ts'), appTsContent(projectName, includeAuth));
   
   // Create server.ts
   await fs.writeFile(path.join(projectPath, 'src', 'server.ts'), serverTsContent);
@@ -212,6 +216,31 @@ SSL_KEY_PATH=./certs/privkey.pem
     path.join(projectPath, 'scripts', 'generate-dev-certs.sh'),
     generateDevCertsScript
   );
+  
+  // If authentication is requested, set up auth files
+  if (includeAuth) {
+    // Create auth directory
+    fs.mkdirSync(path.join(projectPath, 'src', 'auth'), { recursive: true });
+    
+    // Create auth files from templates
+    // In a real implementation, we would copy from template files
+    // For now, we'll create placeholder files with basic structure
+    
+    await fs.writeFile(
+      path.join(projectPath, 'src', 'auth', 'index.ts'),
+      authIndexContent
+    );
+    
+    await fs.writeFile(
+      path.join(projectPath, 'src', 'auth', 'auth-controller.ts'),
+      authControllerContent
+    );
+    
+    await fs.writeFile(
+      path.join(projectPath, 'src', 'auth', 'auth-routes.ts'),
+      authRoutesContent
+    );
+  }
 }
 
 const gitignoreContent = `# Logs
@@ -253,7 +282,7 @@ certs/*.key
 .DS_Store
 `;
 
-function appTsContent(projectName: string): string {
+function appTsContent(projectName: string, includeAuth = false): string {
   return `import express, { 
   Express, 
   Request, 
@@ -266,10 +295,12 @@ import { errorHandler } from 'awesome-express';
 
 // Import routes
 import homeRoutes from './routes/homeRoutes';
+${includeAuth ? "import { createAuthRoutes } from './auth/auth-routes';\n" : ''}
 
 // Initialize environment variables
 dotenv.config();
 
+${includeAuth ? "// JWT Secret\nconst JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';\n" : ''}
 // Create Express app
 const app: Express = express();
 
@@ -280,6 +311,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
 app.use('/', homeRoutes);
+${includeAuth ? "\n// Authentication routes\nconst authRoutes = createAuthRoutes(JWT_SECRET);\napp.use('/auth', authRoutes);\n" : ''}
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -488,4 +520,284 @@ echo "Development certificates generated successfully at:"
 echo "  - $CERT_DIR/localhost.crt"
 echo "  - $CERT_DIR/localhost.key"
 echo "These are self-signed certificates and should only be used for development."
-`; 
+`;
+
+const authIndexContent = `/**
+ * Authentication module
+ * Provides JWT authentication functionality
+ */
+
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+
+export interface JwtPayload {
+  sub: string;
+  [key: string]: any;
+}
+
+export interface JwtOptions {
+  secret: string;
+  expiresIn?: string | number;
+  refreshExpiresIn?: string | number;
+  issuer?: string;
+  audience?: string;
+}
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn: number;
+  tokenType: string;
+}
+
+/**
+ * Creates JWT authentication middleware
+ */
+export function createJwtAuth(options: JwtOptions) {
+  return {
+    /**
+     * Generates a JWT token
+     */
+    generateToken(payload: JwtPayload, isRefresh = false): string {
+      const tokenOptions: jwt.SignOptions = {
+        expiresIn: isRefresh ? options.refreshExpiresIn || '7d' : options.expiresIn || '1h' as any,
+      };
+      
+      if (options.issuer) {
+        tokenOptions.issuer = options.issuer;
+      }
+      
+      if (options.audience) {
+        tokenOptions.audience = options.audience;
+      }
+      
+      return jwt.sign(payload, options.secret, tokenOptions);
+    },
+    
+    /**
+     * Issues both access and refresh tokens
+     */
+    issueTokens(payload: JwtPayload): TokenResponse {
+      const accessToken = this.generateToken(payload);
+      const refreshToken = this.generateToken(payload, true);
+      
+      // Parse the expiration from the token
+      const decoded = jwt.decode(accessToken) as { exp: number };
+      const expiresIn = decoded.exp ? decoded.exp - Math.floor(Date.now() / 1000) : 3600;
+      
+      return {
+        accessToken,
+        refreshToken,
+        expiresIn,
+        tokenType: 'Bearer'
+      };
+    },
+    
+    /**
+     * Middleware to verify JWT tokens
+     */
+    verifyToken(req: Request, res: Response, next: NextFunction): Response | void {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader) {
+        return res.status(401).json({ message: 'No authorization token provided' });
+      }
+      
+      const token = authHeader.split(' ')[1];
+      
+      if (!token) {
+        return res.status(401).json({ message: 'Invalid token format' });
+      }
+      
+      try {
+        const decoded = jwt.verify(token, options.secret) as JwtPayload;
+        req.user = decoded;
+        next();
+      } catch (error) {
+        if (error instanceof jwt.TokenExpiredError) {
+          return res.status(401).json({ message: 'Token expired' });
+        }
+        
+        return res.status(401).json({ message: 'Invalid token' });
+      }
+    },
+    
+    /**
+     * Middleware to refresh an expired token
+     */
+    refreshToken(req: Request, res: Response): Response {
+      const { refreshToken } = req.body;
+      
+      if (!refreshToken) {
+        return res.status(400).json({ message: 'Refresh token is required' });
+      }
+      
+      try {
+        const decoded = jwt.verify(refreshToken, options.secret) as JwtPayload;
+        
+        // Issue new tokens
+        const tokens = this.issueTokens({
+          ...decoded
+        });
+        
+        return res.json(tokens);
+      } catch (error) {
+        return res.status(401).json({ message: 'Invalid refresh token' });
+      }
+    }
+  };
+}
+
+// Extend the Express Request interface to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+    }
+  }
+}
+
+// Export a route decorator for TypeScript projects
+export function RequireAuth() {
+  return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+    const originalMethod = descriptor.value;
+    
+    descriptor.value = function(req: Request, res: Response, next: NextFunction) {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+      
+      return originalMethod.apply(this, [req, res, next]);
+    };
+    
+    return descriptor;
+  };
+}`;
+
+const authControllerContent = `import { Request, Response } from 'express';
+import { createJwtAuth, JwtPayload } from './index';
+
+// This would typically come from configuration
+const jwtAuth = createJwtAuth({
+  secret: process.env.JWT_SECRET || 'your-secret-key',
+  expiresIn: '1h',
+  refreshExpiresIn: '7d',
+});
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+}
+
+/**
+ * Authentication Controller
+ * 
+ * This is a sample controller to demonstrate how to use JWT authentication.
+ * In a real implementation, you would connect this to your user database.
+ */
+export const AuthController = {
+  /**
+   * Login endpoint
+   */
+  async login(req: Request, res: Response) {
+    const { username, password } = req.body as LoginRequest;
+    
+    // In a real app, you would validate against a database
+    // This is just a simple example
+    if (username === 'admin' && password === 'password') {
+      // Create payload with user information
+      const payload: JwtPayload = {
+        sub: '1', // User ID would come from your database
+        username,
+        roles: ['user']
+      };
+      
+      // Generate tokens
+      const tokens = jwtAuth.issueTokens(payload);
+      
+      return res.json(tokens);
+    }
+    
+    return res.status(401).json({
+      message: 'Invalid credentials'
+    });
+  },
+  
+  /**
+   * Registration endpoint
+   */
+  async register(req: Request, res: Response) {
+    const { username, email, password } = req.body as RegisterRequest;
+    
+    // Validate input
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        message: 'All fields are required'
+      });
+    }
+    
+    // In a real app, you would validate and store in a database
+    // For this example, we'll just pretend it worked
+    
+    // Create payload
+    const payload: JwtPayload = {
+      sub: Math.floor(Math.random() * 1000).toString(), // Simulate user ID
+      username,
+      email,
+      roles: ['user']
+    };
+    
+    // Generate tokens
+    const tokens = jwtAuth.issueTokens(payload);
+    
+    return res.status(201).json({
+      message: 'User registered successfully',
+      ...tokens
+    });
+  },
+  
+  /**
+   * Token refresh endpoint
+   */
+  refreshToken(req: Request, res: Response) {
+    return jwtAuth.refreshToken(req, res);
+  },
+  
+  /**
+   * User profile endpoint (protected)
+   */
+  getProfile(req: Request, res: Response) {
+    // req.user is populated by the JWT middleware
+    return res.json({
+      profile: req.user
+    });
+  }
+};`;
+
+const authRoutesContent = `import { Router } from 'express';
+import { AuthController } from './auth-controller';
+import { createJwtAuth } from './index';
+
+/**
+ * Creates authentication routes with JWT middleware
+ */
+export function createAuthRoutes(jwtSecret: string) {
+  const router = Router();
+  const jwtAuth = createJwtAuth({ secret: jwtSecret });
+  
+  // Public routes
+  router.post('/login', AuthController.login);
+  router.post('/register', AuthController.register);
+  router.post('/refresh-token', AuthController.refreshToken);
+  
+  // Protected routes
+  router.get('/profile', jwtAuth.verifyToken, AuthController.getProfile);
+  
+  return router;
+}`; 

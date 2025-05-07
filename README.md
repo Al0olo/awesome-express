@@ -13,6 +13,7 @@ An enhanced Express framework with HTTP/2 support and CLI tools for rapid applic
 - **MVC Pattern**: Organized project structure with models, views, and controllers
 - **SSL Certificate Management**: Automatic setup with certbot
 - **TypeScript Support**: First-class TypeScript support out of the box
+- **JWT Authentication**: Ready-to-use JWT authentication with token generation and route protection
 
 ## Installation
 
@@ -76,6 +77,12 @@ Generate a route:
 awesome-express g route User
 ```
 
+Generate JWT authentication:
+
+```bash
+awesome-express g auth
+```
+
 ### Setting up SSL Certificates
 
 ```bash
@@ -137,6 +144,59 @@ startHttp2Server(app, {
   port: 3000
 });
 ```
+
+## JWT Authentication
+
+The framework includes a ready-to-use JWT authentication system that can be added during project creation or to an existing project.
+
+### Adding Authentication
+
+During project creation:
+```bash
+awesome-express new my-app --include-auth
+```
+
+Or to an existing project:
+```bash
+awesome-express g auth
+```
+
+### Authentication Features
+
+- **Token Generation & Verification**: Complete JWT token lifecycle management
+- **Pre-configured Routes**: Ready-to-use login, register, and refresh endpoints
+- **Route Protection**: Middleware for securing API endpoints
+- **TypeScript Decorators**: `@RequireAuth()` decorator for controller methods
+
+### Available Endpoints
+
+Once integrated, the following endpoints become available:
+
+- `POST /auth/register` - Create a new user
+- `POST /auth/login` - Authenticate a user
+- `POST /auth/refresh-token` - Refresh an expired access token
+- `GET /auth/profile` - Get user profile (protected route)
+
+### Example Usage
+
+Protecting a route:
+
+```typescript
+import { createJwtAuth } from './auth';
+
+const jwtAuth = createJwtAuth({ secret: process.env.JWT_SECRET });
+
+router.get('/api/protected', jwtAuth.verifyToken, (req, res) => {
+  res.json({
+    message: 'This is a protected endpoint',
+    user: req.user
+  });
+});
+```
+
+### Customization
+
+The authentication system is designed as a template that works out of the box but is meant to be extended with your own database implementation. It provides the JWT infrastructure while letting you implement your own user storage logic.
 
 ## License
 

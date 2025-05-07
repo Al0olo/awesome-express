@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import chalk from 'chalk';
 import { camelCase, pascalCase, paramCase } from 'change-case';
+import ora from 'ora';
 
 /**
  * Generate a controller file
@@ -255,4 +256,120 @@ export default router;
   console.log(chalk.yellow(`\nTip: Don't forget to register your routes in src/app.ts:`));
   console.log(chalk.cyan(`  import ${camelCase(baseName)}Routes from './routes/${routesName}';`));
   console.log(chalk.cyan(`  app.use('/${paramCase(baseName)}', ${camelCase(baseName)}Routes);`));
+}
+
+/**
+ * Generates an authentication setup for the project
+ */
+export async function generateAuth(directory = '.', options: any): Promise<void> {
+  const projectPath = path.resolve(process.cwd(), directory);
+  
+  if (!fs.existsSync(projectPath)) {
+    console.error(chalk.red(`Directory ${directory} does not exist!`));
+    process.exit(1);
+  }
+  
+  // Check if auth directory already exists
+  const authDir = path.join(projectPath, 'src', 'auth');
+  if (fs.existsSync(authDir)) {
+    console.error(chalk.yellow(`Auth module already exists in ${authDir}`));
+    console.log('You can still manually copy files from node_modules/awesome-express/lib/auth');
+    process.exit(1);
+  }
+  
+  const spinner = ora('Setting up authentication...').start();
+  
+  try {
+    // Create auth directory
+    fs.mkdirSync(authDir, { recursive: true });
+    
+    // Copy auth files from templates
+    const templateDir = path.join(__dirname, '..', '..', 'lib', 'auth');
+    
+    // Copy auth module
+    fs.copyFileSync(
+      path.join(templateDir, 'index.js'),
+      path.join(authDir, 'index.ts')
+    );
+    
+    // Copy auth controller
+    fs.copyFileSync(
+      path.join(templateDir, 'auth-controller.js'),
+      path.join(authDir, 'auth-controller.ts')
+    );
+    
+    // Copy auth routes
+    fs.copyFileSync(
+      path.join(templateDir, 'auth-routes.js'),
+      path.join(authDir, 'auth-routes.ts')
+    );
+    
+    // Update package.json to add jsonwebtoken dependency if needed
+    const packageJsonPath = path.join(projectPath, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      
+      let updated = false;
+      
+      if (!packageJson.dependencies) {
+        packageJson.dependencies = {};
+      }
+      
+      if (!packageJson.dependencies.jsonwebtoken) {
+        packageJson.dependencies.jsonwebtoken = '^9.0.0';
+        updated = true;
+      }
+      
+      if (!packageJson.devDependencies) {
+        packageJson.devDependencies = {};
+      }
+      
+      if (!packageJson.devDependencies['@types/jsonwebtoken']) {
+        packageJson.devDependencies['@types/jsonwebtoken'] = '^9.0.0';
+        updated = true;
+      }
+      
+      if (updated) {
+        fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+      }
+    }
+    
+    // Update .env file to add JWT_SECRET if it doesn't exist
+    const envPath = path.join(projectPath, '.env');
+    if (fs.existsSync(envPath)) {
+      let envContent = fs.readFileSync(envPath, 'utf8');
+      
+      if (!envContent.includes('JWT_SECRET')) {
+        // Generate a random JWT secret
+        const secret = require('crypto').randomBytes(32).toString('hex');
+        envContent += `\n# JWT Authentication\nJWT_SECRET=${secret}\n`;
+        fs.writeFileSync(envPath, envContent);
+      }
+    }
+    
+    spinner.succeed('Authentication setup completed successfully');
+    console.log(chalk.green('\nTo integrate with your app, add the following to your app.ts:'));
+    console.log(chalk.cyan(`
+import { createAuthRoutes } from './auth/auth-routes';
+
+// Add this near other middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// Set up auth routes (add your actual secret)
+const authRoutes = createAuthRoutes(process.env.JWT_SECRET || 'your-secret-key');
+app.use('/auth', authRoutes);
+`));
+    
+    console.log(chalk.green('\nAvailable endpoints:'));
+    console.log(chalk.cyan('POST /auth/register - Create a new user'));
+    console.log(chalk.cyan('POST /auth/login - Authenticate a user'));
+    console.log(chalk.cyan('POST /auth/refresh-token - Refresh an access token'));
+    console.log(chalk.cyan('GET /auth/profile - Get user profile (protected)'));
+    
+  } catch (error) {
+    spinner.fail('Failed to set up authentication');
+    console.error(error);
+    process.exit(1);
+  }
 } 

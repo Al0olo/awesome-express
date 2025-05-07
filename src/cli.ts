@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import * as inquirer from 'inquirer';
 import { createNewProject } from './commands/new';
-import { generateController, generateModel, generateRoute } from './commands/generate';
+import { generateController, generateModel, generateRoute, generateAuth } from './commands/generate';
 import { setupCertbot } from './commands/certbot';
 import { version } from '../package.json';
 
@@ -14,11 +14,12 @@ program.name('awesome-express');
 
 // New project command
 program
-  .command('new <name>')
+  .command('new <n>')
   .description('Create a new awesome-express application')
   .option('-d, --directory <directory>', 'Specify the directory to create the app in')
   .option('--skip-install', 'Skip installation of dependencies', false)
   .option('--skip-git', 'Skip git initialization', false)
+  .option('--include-auth', 'Include JWT authentication setup', false)
   .action(async (name, options) => {
     try {
       await createNewProject(name, options);
@@ -67,6 +68,19 @@ generate
     }
   });
 
+generate
+  .command('auth')
+  .description('Generate JWT authentication setup')
+  .option('-d, --directory <directory>', 'Target directory (default: current directory)')
+  .action(async (options) => {
+    try {
+      await generateAuth(options.directory, options);
+    } catch (error) {
+      console.error(chalk.red('Error setting up authentication: '), error);
+      process.exit(1);
+    }
+  });
+
 // Certbot command
 program
   .command('certbot')
@@ -88,6 +102,7 @@ program.on('--help', () => {
   console.log(chalk.green('Examples:'));
   console.log('  $ awesome-express new my-app');
   console.log('  $ awesome-express g controller UserController');
+  console.log('  $ awesome-express g auth');
   console.log('  $ awesome-express certbot -d example.com -e admin@example.com');
 });
 
