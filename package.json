@@ -4,6 +4,13 @@
   "description": "Enhanced Express framework with HTTP/2 support and CLI tools",
   "main": "lib/index.js",
   "author": "Abdullah Farag <abdallah.farag@lavaloon.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/al0olo/express-http2"
+  },
+  "bugs": {
+    "url": "https://github.com/al0olo/express-http2/issues"
+  },
   "bin": {
     "express-http2": "./bin/cli.js"
   },
