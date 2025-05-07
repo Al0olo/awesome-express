@@ -67,6 +67,19 @@ export async function createNewProject(name: string, options: NewProjectOptions)
     }
   }
   
+  // Generate development certificates
+  const certSpinner = ora('Generating development SSL certificates...').start();
+  try {
+    // Make the script executable
+    await execa('chmod', ['+x', path.join(projectPath, 'scripts', 'generate-dev-certs.sh')]);
+    // Run the certificate generation script
+    await execa('bash', ['scripts/generate-dev-certs.sh'], { cwd: projectPath });
+    certSpinner.succeed('Development SSL certificates created');
+  } catch (error) {
+    certSpinner.fail('Failed to generate SSL certificates');
+    console.error(chalk.yellow('Certificate generation failed, you can run it manually later.'));
+  }
+  
   // Show success message
   console.log(chalk.green(`\nSuccess! Created ${name} at ${projectPath}`));
   console.log('Inside that directory, you can run several commands:');
@@ -283,11 +296,14 @@ const serverTsContent = `import path from 'path';
 import dotenv from 'dotenv';
 import { createHttp2App, startHttp2Server } from 'awesome-express';
 import fs from 'fs';
+import express from 'express';
+import http from 'http';
 
 // Load environment variables
 dotenv.config();
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 3000;
+const HTTP_PORT = process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT) : 8080;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
 async function bootstrap() {
@@ -297,8 +313,17 @@ async function bootstrap() {
   const configuredApp = require('./app').default;
   
   try {
-    // In development, we use self-signed certificates
-    // In production, we use certbot-generated certificates
+    // In development, we support both HTTP and HTTPS
+    // In production, we use HTTPS only with certbot-generated certificates
+    if (NODE_ENV === 'development') {
+      // Start HTTP server for development convenience
+      const httpServer = http.createServer(configuredApp);
+      httpServer.listen(HTTP_PORT, () => {
+        console.log(\`HTTP server running in \${NODE_ENV} mode on http://localhost:\${HTTP_PORT}\`);
+      });
+    }
+    
+    // Setup HTTPS with HTTP/2
     let certPath, keyPath;
     
     if (NODE_ENV === 'production') {
@@ -323,7 +348,7 @@ async function bootstrap() {
       port: PORT
     });
     
-    console.log(\`Server running in \${NODE_ENV} mode on port \${PORT}\`);
+    console.log(\`HTTPS server running in \${NODE_ENV} mode on https://localhost:\${PORT} (HTTP/2)\`);
   } catch (error) {
     console.error('Error starting server:', error);
     process.exit(1);

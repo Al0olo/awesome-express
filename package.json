@@ -1,6 +1,6 @@
 {
   "name": "awesome-express",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Enhanced Express framework with HTTP/2 support and CLI tools",
   "main": "lib/index.js",
   "author": "Abdullah Farag <abdallah.farag@lavaloon.com>",
