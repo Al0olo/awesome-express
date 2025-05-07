@@ -177,6 +177,7 @@ async function copyTemplateFiles(projectPath: string, projectName: string): Prom
   
   // Create .env file
   const envContent = `PORT=3000
+HTTP_PORT=3001
 NODE_ENV=development
 # SSL Certificate paths (for production)
 SSL_CERT_PATH=./certs/fullchain.pem
