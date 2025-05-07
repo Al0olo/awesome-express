@@ -11,6 +11,7 @@ interface NewProjectOptions {
   skipInstall?: boolean;
   skipGit?: boolean;
   includeAuth?: boolean;
+  includeOpenApi?: boolean;
 }
 
 /**
@@ -34,10 +35,36 @@ export async function createNewProject(name: string, options: NewProjectOptions)
     fs.mkdirSync(projectPath, { recursive: true });
   }
   
+  // Prompt for JWT authentication if not specified
+  if (options.includeAuth === undefined) {
+    const answer = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'includeAuth',
+        message: 'Would you like to include JWT authentication?',
+        default: false
+      }
+    ]);
+    options.includeAuth = answer.includeAuth;
+  }
+  
+  // Prompt for OpenAPI documentation if not specified
+  if (options.includeOpenApi === undefined) {
+    const answer = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'includeOpenApi',
+        message: 'Would you like to include OpenAPI documentation?',
+        default: false
+      }
+    ]);
+    options.includeOpenApi = answer.includeOpenApi;
+  }
+  
   // Copy template files
   const spinner = ora('Creating project structure...').start();
   try {
-    await copyTemplateFiles(projectPath, name, options.includeAuth);
+    await copyTemplateFiles(projectPath, name, options.includeAuth, options.includeOpenApi);
     spinner.succeed('Project structure created');
   } catch (error) {
     spinner.fail('Failed to create project structure');
@@ -103,7 +130,12 @@ export async function createNewProject(name: string, options: NewProjectOptions)
 /**
  * Copy template files to the project directory
  */
-async function copyTemplateFiles(projectPath: string, projectName: string, includeAuth = false): Promise<void> {
+async function copyTemplateFiles(
+  projectPath: string, 
+  projectName: string, 
+  includeAuth = false,
+  includeOpenApi = false
+): Promise<void> {
   // In a real implementation, this would copy from actual template files
   // For now, we'll create the basic structure programmatically
   
@@ -134,14 +166,19 @@ async function copyTemplateFiles(projectPath: string, projectName: string, inclu
       start: 'ts-node src/server.ts',
       dev: 'nodemon --exec ts-node src/server.ts',
       build: 'tsc',
-      certbot: 'awesome-express certbot'
+      certbot: 'awesome-express certbot',
+      docs: 'awesome-express docs serve'
     },
     dependencies: {
       express: '^4.18.2',
       'awesome-express': '^0.1.0',
       'express-validator': '^7.0.1',
       dotenv: '^16.0.3',
-      jsonwebtoken: '^9.0.2'
+      jsonwebtoken: '^9.0.2',
+      ...(includeOpenApi ? {
+        'swagger-jsdoc': '^6.2.8',
+        'swagger-ui-express': '^5.0.0'
+      } : {})
     },
     devDependencies: {
       '@types/express': '^4.17.17',
@@ -149,7 +186,11 @@ async function copyTemplateFiles(projectPath: string, projectName: string, inclu
       nodemon: '^2.0.22',
       'ts-node': '^10.9.1',
       typescript: '^5.0.4',
-      '@types/jsonwebtoken': '^9.0.2'
+      '@types/jsonwebtoken': '^9.0.2',
+      ...(includeOpenApi ? {
+        '@types/swagger-jsdoc': '^6.0.1',
+        '@types/swagger-ui-express': '^4.1.3'
+      } : {})
     }
   };
   
@@ -191,21 +232,23 @@ ${includeAuth ? `\n# JWT Authentication\nJWT_SECRET=${require('crypto').randomBy
   await fs.writeFile(path.join(projectPath, '.env'), envContent);
   
   // Create app.ts
-  await fs.writeFile(path.join(projectPath, 'src', 'app.ts'), appTsContent(projectName, includeAuth));
+  await fs.writeFile(path.join(projectPath, 'src', 'app.ts'), appTsContent(projectName, includeAuth, includeOpenApi));
   
   // Create server.ts
   await fs.writeFile(path.join(projectPath, 'src', 'server.ts'), serverTsContent);
   
   // Create an example controller
+  const controllerContent = includeOpenApi ? homeControllerWithSwaggerContent : homeControllerContent;
   await fs.writeFile(
     path.join(projectPath, 'src', 'controllers', 'homeController.ts'),
-    homeControllerContent
+    controllerContent
   );
   
   // Create an example route
+  const routesContent = includeOpenApi ? homeRoutesWithSwaggerContent : homeRoutesContent;
   await fs.writeFile(
     path.join(projectPath, 'src', 'routes', 'homeRoutes.ts'),
-    homeRoutesContent
+    routesContent
   );
   
   // Create README.md
@@ -239,6 +282,17 @@ ${includeAuth ? `\n# JWT Authentication\nJWT_SECRET=${require('crypto').randomBy
     await fs.writeFile(
       path.join(projectPath, 'src', 'auth', 'auth-routes.ts'),
       authRoutesContent
+    );
+  }
+  
+  // If OpenAPI is requested, set up swagger documentation
+  if (includeOpenApi) {
+    // Create docs directory for OpenAPI types and components
+    fs.mkdirSync(path.join(projectPath, 'src', 'docs'), { recursive: true });
+    
+    await fs.writeFile(
+      path.join(projectPath, 'src', 'docs', 'swagger.ts'),
+      swaggerConfigContent(projectName)
     );
   }
 }
@@ -282,7 +336,7 @@ certs/*.key
 .DS_Store
 `;
 
-function appTsContent(projectName: string, includeAuth = false): string {
+function appTsContent(projectName: string, includeAuth = false, includeOpenApi = false): string {
   return `import express, { 
   Express, 
   Request, 
@@ -296,6 +350,7 @@ import { errorHandler } from 'awesome-express';
 // Import routes
 import homeRoutes from './routes/homeRoutes';
 ${includeAuth ? "import { createAuthRoutes } from './auth/auth-routes';\n" : ''}
+${includeOpenApi ? "import { setupSwagger } from './docs/swagger';\n" : ''}
 
 // Initialize environment variables
 dotenv.config();
@@ -320,6 +375,8 @@ app.use((req: Request, res: Response) => {
 
 // Error handler
 app.use(errorHandler);
+
+${includeOpenApi ? "\n// Setup OpenAPI documentation\nsetupSwagger(app);\n" : ''}
 
 export default app;
 `;
@@ -800,4 +857,147 @@ export function createAuthRoutes(jwtSecret: string) {
   router.get('/profile', jwtAuth.verifyToken, AuthController.getProfile);
   
   return router;
-}`; 
+}`;
+
+// Add new constants for Swagger-annotated example files
+
+const homeRoutesWithSwaggerContent = `import { Router } from 'express';
+import homeController from '../controllers/homeController';
+
+const router = Router();
+
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     summary: Get homepage information
+ *     description: Returns welcome message and HTTP/2 status
+ *     tags:
+ *       - Home
+ *     responses:
+ *       200:
+ *         description: Welcome message
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Welcome to Express HTTP/2!
+ *                 http2:
+ *                   type: boolean
+ *                   example: true
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ */
+router.get('/', homeController.index);
+
+export default router;
+`;
+
+const homeControllerWithSwaggerContent = `import { Request, Response } from 'express';
+
+/**
+ * Home controller
+ */
+export default {
+  /**
+   * Index action - renders the homepage
+   * @param {Request} req - Express request object
+   * @param {Response} res - Express response object
+   * @returns {Response} JSON response
+   */
+  index(req: Request, res: Response) {
+    return res.json({
+      message: 'Welcome to Express HTTP/2!',
+      http2: true,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+`;
+
+const swaggerConfigContent = (projectName: string) => `import { Express } from 'express';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import path from 'path';
+
+/**
+ * OpenAPI Configuration
+ */
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: '${projectName} API',
+    version: '1.0.0',
+    description: 'API Documentation for ${projectName}',
+    license: {
+      name: 'MIT',
+      url: 'https://opensource.org/licenses/MIT',
+    },
+    contact: {
+      name: 'API Support',
+      url: 'https://yourwebsite.com/support',
+      email: 'support@yourwebsite.com',
+    },
+  },
+  servers: [
+    {
+      url: 'http://localhost:3001',
+      description: 'Development HTTP server',
+    },
+    {
+      url: 'https://localhost:3000',
+      description: 'Development HTTPS server (HTTP/2)',
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+    },
+  },
+};
+
+/**
+ * Options for the swagger specification
+ */
+const options = {
+  swaggerDefinition,
+  // Path to the API docs
+  apis: [
+    path.join(__dirname, '../routes/**/*.ts'),
+    path.join(__dirname, '../controllers/**/*.ts'),
+    path.join(__dirname, '../models/**/*.ts'),
+  ],
+};
+
+/**
+ * Initialize swagger-jsdoc
+ */
+const swaggerSpec = swaggerJSDoc(options);
+
+/**
+ * Setup Swagger UI
+ */
+export function setupSwagger(app: Express): void {
+  // Serve swagger docs
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+  }));
+
+  // Route to get OpenAPI specification
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+  
+  console.log('OpenAPI documentation available at /api-docs');
+}
+`; 

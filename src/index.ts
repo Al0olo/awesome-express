@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import * as spdy from 'spdy';
 import * as fs from 'fs';
 import * as path from 'path';
+import { setupSwagger, generateOpenApiSpec, OpenAPIOptions } from './docs';
 
 /**
  * Options for setting up the HTTP/2 server
@@ -73,6 +74,9 @@ export function errorHandler(
   });
 }
 
+// Export OpenAPI functions
+export { setupSwagger, generateOpenApiSpec, OpenAPIOptions };
+
 // Re-export Express types and functions for convenience
 export { Express, Request, Response, NextFunction };
-export default { createHttp2App, startHttp2Server, errorHandler }; 
+export default { createHttp2App, startHttp2Server, errorHandler, setupSwagger, generateOpenApiSpec }; 

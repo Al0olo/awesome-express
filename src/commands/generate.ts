@@ -372,4 +372,213 @@ app.use('/auth', authRoutes);
     console.error(error);
     process.exit(1);
   }
+}
+
+/**
+ * Generates OpenAPI documentation setup for the project
+ */
+export async function generateOpenApi(directory = '.', options: any): Promise<void> {
+  const projectPath = path.resolve(process.cwd(), directory);
+  
+  if (!fs.existsSync(projectPath)) {
+    console.error(chalk.red(`Directory ${directory} does not exist!`));
+    process.exit(1);
+  }
+  
+  // Check if docs directory already exists
+  const docsDir = path.join(projectPath, 'src', 'docs');
+  if (fs.existsSync(docsDir)) {
+    console.error(chalk.yellow(`Docs module already exists in ${docsDir}`));
+    console.log('You can still manually setup OpenAPI documentation');
+    process.exit(1);
+  }
+  
+  const spinner = ora('Setting up OpenAPI documentation...').start();
+  
+  try {
+    // Create docs directory
+    fs.mkdirSync(docsDir, { recursive: true });
+    
+    // Get project name from package.json
+    let projectName = 'API';
+    const packageJsonPath = path.join(projectPath, 'package.json');
+    if (fs.existsSync(packageJsonPath)) {
+      try {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+        projectName = packageJson.name || 'API';
+        
+        // Add dependencies to package.json if needed
+        let updated = false;
+        
+        if (!packageJson.dependencies) {
+          packageJson.dependencies = {};
+        }
+        
+        if (!packageJson.dependencies['swagger-jsdoc']) {
+          packageJson.dependencies['swagger-jsdoc'] = '^6.2.8';
+          updated = true;
+        }
+        
+        if (!packageJson.dependencies['swagger-ui-express']) {
+          packageJson.dependencies['swagger-ui-express'] = '^5.0.0';
+          updated = true;
+        }
+        
+        if (!packageJson.devDependencies) {
+          packageJson.devDependencies = {};
+        }
+        
+        if (!packageJson.devDependencies['@types/swagger-jsdoc']) {
+          packageJson.devDependencies['@types/swagger-jsdoc'] = '^6.0.1';
+          updated = true;
+        }
+        
+        if (!packageJson.devDependencies['@types/swagger-ui-express']) {
+          packageJson.devDependencies['@types/swagger-ui-express'] = '^4.1.3';
+          updated = true;
+        }
+        
+        if (!packageJson.scripts) {
+          packageJson.scripts = {};
+        }
+        
+        if (!packageJson.scripts.docs) {
+          packageJson.scripts.docs = 'awesome-express docs serve';
+          updated = true;
+        }
+        
+        if (updated) {
+          fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+        }
+      } catch (error) {
+        spinner.warn('Failed to parse package.json, using default project name');
+      }
+    }
+    
+    // Create swagger configuration file
+    fs.writeFileSync(
+      path.join(docsDir, 'swagger.ts'),
+      `import { Express } from 'express';
+import swaggerJSDoc from 'swagger-jsdoc';
+import swaggerUi from 'swagger-ui-express';
+import path from 'path';
+
+/**
+ * OpenAPI Configuration
+ */
+const swaggerDefinition = {
+  openapi: '3.0.0',
+  info: {
+    title: '${projectName} API',
+    version: '1.0.0',
+    description: 'API Documentation for ${projectName}',
+    license: {
+      name: 'MIT',
+      url: 'https://opensource.org/licenses/MIT',
+    },
+    contact: {
+      name: 'API Support',
+      url: 'https://yourwebsite.com/support',
+      email: 'support@yourwebsite.com',
+    },
+  },
+  servers: [
+    {
+      url: 'http://localhost:3001',
+      description: 'Development HTTP server',
+    },
+    {
+      url: 'https://localhost:3000',
+      description: 'Development HTTPS server (HTTP/2)',
+    },
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+      },
+    },
+  },
+};
+
+/**
+ * Options for the swagger specification
+ */
+const options = {
+  swaggerDefinition,
+  // Path to the API docs
+  apis: [
+    path.join(__dirname, '../routes/**/*.ts'),
+    path.join(__dirname, '../controllers/**/*.ts'),
+    path.join(__dirname, '../models/**/*.ts'),
+  ],
+};
+
+/**
+ * Initialize swagger-jsdoc
+ */
+const swaggerSpec = swaggerJSDoc(options);
+
+/**
+ * Setup Swagger UI
+ */
+export function setupSwagger(app: Express): void {
+  // Serve swagger docs
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+  }));
+
+  // Route to get OpenAPI specification
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+  
+  console.log('OpenAPI documentation available at /api-docs');
+}`
+    );
+    
+    spinner.succeed('OpenAPI documentation setup completed successfully');
+    
+    // Provide instructions for integrating with app.ts
+    console.log(chalk.green('\nTo integrate with your app, add the following to your app.ts:'));
+    console.log(chalk.cyan(`
+import { setupSwagger } from './docs/swagger';
+
+// Add this at the end of your app.ts file, before exporting the app
+setupSwagger(app);
+`));
+    
+    console.log(chalk.green('\nTo document your routes, add JSDoc comments like this:'));
+    console.log(chalk.cyan(`
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     description: Retrieve a list of all users
+ *     responses:
+ *       200:
+ *         description: A list of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ */
+router.get('/users', userController.getAllUsers);
+`));
+    
+    console.log(chalk.green('\nRun the documentation server with:'));
+    console.log(chalk.cyan('npm run docs'));
+    
+  } catch (error) {
+    spinner.fail('Failed to set up OpenAPI documentation');
+    console.error(error);
+    process.exit(1);
+  }
 } 

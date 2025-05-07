@@ -94,7 +94,8 @@ export function createJwtAuth(options: JwtOptions) {
         req.user = decoded;
         next();
       } catch (error) {
-        if (error instanceof jwt.TokenExpiredError) {
+        // Check for token expiration by checking the error name rather than using instanceof
+        if (error instanceof Error && error.name === 'TokenExpiredError') {
           return res.status(401).json({ message: 'Token expired' });
         }
         

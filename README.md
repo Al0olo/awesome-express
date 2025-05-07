@@ -14,6 +14,7 @@ An enhanced Express framework with HTTP/2 support and CLI tools for rapid applic
 - **SSL Certificate Management**: Automatic setup with certbot
 - **TypeScript Support**: First-class TypeScript support out of the box
 - **JWT Authentication**: Ready-to-use JWT authentication with token generation and route protection
+- **OpenAPI Documentation**: Automatic API documentation generation from JSDoc comments
 
 ## Installation
 
@@ -83,6 +84,12 @@ Generate JWT authentication:
 awesome-express g auth
 ```
 
+Generate OpenAPI documentation:
+
+```bash
+awesome-express g openapi
+```
+
 ### Setting up SSL Certificates
 
 ```bash
@@ -143,6 +150,66 @@ startHttp2Server(app, {
   key: '/path/to/key.pem',
   port: 3000
 });
+```
+
+## OpenAPI Documentation
+
+The framework provides built-in support for generating OpenAPI documentation from JSDoc comments.
+
+### Adding OpenAPI Documentation
+
+During project creation:
+```bash
+awesome-express new my-app --include-openapi
+```
+
+Or to an existing project:
+```bash
+awesome-express g openapi
+```
+
+### Documenting Routes
+
+Document your routes using JSDoc comments with OpenAPI/Swagger annotations:
+
+```typescript
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     description: Retrieve a list of all users
+ *     tags:
+ *       - Users
+ *     responses:
+ *       200:
+ *         description: A list of users
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/User'
+ */
+router.get('/users', userController.getAllUsers);
+```
+
+### Serving Documentation
+
+Serve OpenAPI documentation:
+
+```bash
+npm run docs
+# or directly
+awesome-express docs serve
+```
+
+This will start a documentation server that displays your API documentation in an interactive UI.
+
+Alternatively, you can generate an OpenAPI specification file:
+
+```bash
+awesome-express docs generate openapi.json
 ```
 
 ## JWT Authentication
