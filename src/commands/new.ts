@@ -12,14 +12,14 @@ interface NewProjectOptions {
 }
 
 /**
- * Creates a new express-http2 application
+ * Creates a new awesome-express application
  */
 export async function createNewProject(name: string, options: NewProjectOptions): Promise<void> {
   // Set target directory
   const targetDir = options.directory || name;
   const projectPath = path.resolve(process.cwd(), targetDir);
   
-  console.log(chalk.bold(`Creating a new express-http2 app in ${chalk.green(projectPath)}`));
+  console.log(chalk.bold(`Creating a new awesome-express app in ${chalk.green(projectPath)}`));
   
   // Check if directory exists
   if (fs.existsSync(projectPath)) {
@@ -119,11 +119,11 @@ async function copyTemplateFiles(projectPath: string, projectName: string): Prom
       start: 'ts-node src/server.ts',
       dev: 'nodemon --exec ts-node src/server.ts',
       build: 'tsc',
-      certbot: 'express-http2 certbot'
+      certbot: 'awesome-express certbot'
     },
     dependencies: {
       express: '^4.18.2',
-      'express-http2': '^0.1.0',
+      'awesome-express': '^0.1.0',
       'express-validator': '^7.0.1',
       dotenv: '^16.0.3'
     },
@@ -248,7 +248,7 @@ function appTsContent(projectName: string): string {
 } from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import { errorHandler } from 'express-http2';
+import { errorHandler } from 'awesome-express';
 
 // Import routes
 import homeRoutes from './routes/homeRoutes';
@@ -281,7 +281,7 @@ export default app;
 
 const serverTsContent = `import path from 'path';
 import dotenv from 'dotenv';
-import { createHttp2App, startHttp2Server } from 'express-http2';
+import { createHttp2App, startHttp2Server } from 'awesome-express';
 import fs from 'fs';
 
 // Load environment variables
@@ -366,7 +366,7 @@ export default router;
 function readmeContent(projectName: string): string {
   return `# ${projectName}
 
-This project was generated with [express-http2](https://github.com/yourusername/express-http2).
+This project was generated with [awesome-express](https://github.com/al0olo/awesome-express).
 
 ## Development
 

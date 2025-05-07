@@ -10,12 +10,12 @@ const program = new Command();
 
 // Set version from package.json
 program.version(version, '-v, --version', 'Output the current version');
-program.name('express-http2');
+program.name('awesome-express');
 
 // New project command
 program
   .command('new <name>')
-  .description('Create a new express-http2 application')
+  .description('Create a new awesome-express application')
   .option('-d, --directory <directory>', 'Specify the directory to create the app in')
   .option('--skip-install', 'Skip installation of dependencies', false)
   .option('--skip-git', 'Skip git initialization', false)
@@ -86,9 +86,9 @@ program
 program.on('--help', () => {
   console.log('');
   console.log(chalk.green('Examples:'));
-  console.log('  $ express-http2 new my-app');
-  console.log('  $ express-http2 g controller UserController');
-  console.log('  $ express-http2 certbot -d example.com -e admin@example.com');
+  console.log('  $ awesome-express new my-app');
+  console.log('  $ awesome-express g controller UserController');
+  console.log('  $ awesome-express certbot -d example.com -e admin@example.com');
 });
 
 // Parse arguments

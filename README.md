@@ -1,7 +1,7 @@
-# express-http2
+# awesome-express
 
-[![npm version](https://img.shields.io/npm/v/express-http2.svg)](https://www.npmjs.com/package/express-http2)
-[![License](https://img.shields.io/npm/l/express-http2.svg)](https://github.com/yourusername/express-http2/blob/main/LICENSE)
+[![npm version](https://img.shields.io/npm/v/awesome-express.svg)](https://www.npmjs.com/package/awesome-express)
+[![License](https://img.shields.io/npm/l/awesome-express.svg)](https://github.com/al0olo/awesome-express/blob/main/LICENSE)
 
 An enhanced Express framework with HTTP/2 support and CLI tools for rapid application development.
 
@@ -16,7 +16,7 @@ An enhanced Express framework with HTTP/2 support and CLI tools for rapid applic
 ## Installation
 
 ```bash
-npm install -g express-http2
+npm install -g awesome-express
 ```
 
 ## Quick Start
@@ -24,7 +24,7 @@ npm install -g express-http2
 Create a new project:
 
 ```bash
-express-http2 new my-app
+awesome-express new my-app
 cd my-app
 ```
 
@@ -47,7 +47,7 @@ Your HTTP/2 server will be running at `https://localhost:3000`.
 ### Creating a New Project
 
 ```bash
-express-http2 new <app-name>
+awesome-express new <app-name>
 ```
 
 Options:
@@ -60,27 +60,27 @@ Options:
 Generate a controller:
 
 ```bash
-express-http2 generate controller UserController
+awesome-express generate controller UserController
 # or using the alias
-express-http2 g controller UserController
+awesome-express g controller UserController
 ```
 
 Generate a model:
 
 ```bash
-express-http2 g model User
+awesome-express g model User
 ```
 
 Generate a route:
 
 ```bash
-express-http2 g route User
+awesome-express g route User
 ```
 
 ### Setting up SSL Certificates
 
 ```bash
-express-http2 certbot
+awesome-express certbot
 ```
 
 Options:
@@ -115,7 +115,7 @@ When you create a new project, it follows this structure:
 The framework provides a simple API for setting up HTTP/2 servers with Express:
 
 ```typescript
-import { createHttp2App, startHttp2Server } from 'express-http2';
+import { createHttp2App, startHttp2Server } from 'awesome-express';
 
 // Create an Express app with HTTP/2 support
 const app = createHttp2App();

@@ -92,7 +92,7 @@ export default {
   // Suggest creating a route
   const routeName = normalizedName.replace('Controller', '');
   console.log(chalk.yellow(`\nTip: Generate a route for this controller:`));
-  console.log(chalk.cyan(`  express-http2 generate route ${routeName}`));
+  console.log(chalk.cyan(`  awesome-express generate route ${routeName}`));
 }
 
 /**
@@ -249,7 +249,7 @@ export default router;
   // Suggest next steps
   if (!controllerExists) {
     console.log(chalk.yellow(`\nTip: Generate a controller for these routes:`));
-    console.log(chalk.cyan(`  express-http2 generate controller ${baseName}`));
+    console.log(chalk.cyan(`  awesome-express generate controller ${baseName}`));
   }
   
   console.log(chalk.yellow(`\nTip: Don't forget to register your routes in src/app.ts:`));
