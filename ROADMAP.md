@@ -76,7 +76,7 @@ This document outlines the planned features and enhancements for awesome-express
 
 ## API & Documentation
 
-- 🔥 🔨 **OpenAPI/Swagger Integration**
+- 🔥 🔨 **OpenAPI/Swagger Integration** ✅ DONE
   - Automatic documentation generation from routes and types
   - Interactive API documentation UI
   - CLI command: `awesome-express docs serve`
