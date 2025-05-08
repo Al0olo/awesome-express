@@ -366,7 +366,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Routes
 app.use('/', homeRoutes);
+${includeOpenApi ? "\n// Setup OpenAPI documentation\nsetupSwagger(app);\n" : ''}
+
 ${includeAuth ? "\n// Authentication routes\nconst authRoutes = createAuthRoutes(JWT_SECRET);\napp.use('/auth', authRoutes);\n" : ''}
+
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -375,8 +378,6 @@ app.use((req: Request, res: Response) => {
 
 // Error handler
 app.use(errorHandler);
-
-${includeOpenApi ? "\n// Setup OpenAPI documentation\nsetupSwagger(app);\n" : ''}
 
 export default app;
 `;
